@@ -34,6 +34,7 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
         catch (Exception excecao)
         {
             System.err.println(excecao.getMessage());
+            aguardar();
         }
     }
 
@@ -209,21 +210,7 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             case ERRO : System.out.println("\nErro de execução: " + resultadoExecucao.getErro().getMensagem() + "\nLinha: " + resultadoExecucao.getErro().getLinha() + ", Coluna: " + resultadoExecucao.getErro().getColuna());
         }
         
-        System.out.println("Pressione ENTER para sair");
-        
-        try
-        {
-            InputStreamReader is = new InputStreamReader(System.in);
-            
-            while (is.read() < 0)
-            {
-                
-            }
-        }
-        catch (Exception ex)
-        {
-            System.exit(0);
-        }
+        aguardar();
     }
 
     private String lerArquivo(File arquivo) throws Exception
@@ -266,6 +253,19 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
         for (ErroAnalise erro : resultadoAnalise.getErros())
         {
             System.out.println("ERRO: " + erro.getMensagem() + ". Linha: " + erro.getLinha() + ", Coluna: " + erro.getColuna());
+        }
+    }
+
+    private static void aguardar()
+    {
+        try
+        {
+            Thread.sleep(3000);
+            System.exit(0);
+        }
+        catch (Exception ex)
+        {
+            
         }
     }
 }
