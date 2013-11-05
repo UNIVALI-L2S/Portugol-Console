@@ -5,6 +5,7 @@ import br.univali.portugol.nucleo.Portugol;
 import br.univali.portugol.nucleo.Programa;
 import br.univali.portugol.nucleo.analise.ResultadoAnalise;
 import br.univali.portugol.nucleo.asa.TipoDado;
+import br.univali.portugol.nucleo.execucao.Armazenador;
 import br.univali.portugol.nucleo.execucao.Entrada;
 import br.univali.portugol.nucleo.execucao.ObservadorExecucao;
 import br.univali.portugol.nucleo.execucao.ResultadoExecucao;
@@ -130,25 +131,27 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     }
 
     @Override
-    public Object ler(TipoDado tipoDado) throws Exception 
+    public void solicitaEntrada(TipoDado tipoDado, Armazenador armazenador) throws Exception 
     {
         Scanner scanner = new Scanner(System.in);
         
         switch (tipoDado)
         {
-            case CADEIA : return scanner.next();
-            case CARACTER : return scanner.next().charAt(0);
-            case INTEIRO : return scanner.nextInt();
-            case REAL : return scanner.nextDouble();
+            case CADEIA : armazenador.setValor(scanner.next()); return;
+            case CARACTER : armazenador.setValor(scanner.next().charAt(0)); return;
+            case INTEIRO : armazenador.setValor(scanner.nextInt()); return;
+            case REAL : armazenador.setValor(scanner.nextDouble()); return;
             case LOGICO : 
             {
-                String log = scanner.next();
+                String log = scanner.next();                
+                Object valor = log.equals("verdadeiro")? true : (log.equals("falso"))? false : null;
                 
-                return (log.equals("verdadeiro"))? true : (log.equals("falso"))? false : null;
+                armazenador.setValor(valor); 
+                return;
             }
         }
         
-        return null;
+        armazenador.setValor(null);
     }
 
     @Override
