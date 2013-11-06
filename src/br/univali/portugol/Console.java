@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Scanner;
 
+
 /**
  *
  * @author Luiz Fernando Noschang
@@ -262,13 +263,22 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     private static void aguardar()
     {
         try
-        {
-            Thread.sleep(3000);
-            System.exit(0);
+        {            
+            System.out.println("");
+            System.out.println("Pressione ENTER para continuar");
+            System.in.read();
         }
         catch (Exception ex)
         {
-            
+            try
+            {
+                Thread.sleep(3000);
+                System.exit(0);
+            }
+            catch(Exception ex2)
+            {
+                
+            }
         }
-    }
+    }    
 }
