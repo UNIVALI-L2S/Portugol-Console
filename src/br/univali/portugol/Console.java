@@ -5,11 +5,11 @@ import br.univali.portugol.nucleo.Portugol;
 import br.univali.portugol.nucleo.Programa;
 import br.univali.portugol.nucleo.analise.ResultadoAnalise;
 import br.univali.portugol.nucleo.asa.TipoDado;
-import br.univali.portugol.nucleo.execucao.Armazenador;
-import br.univali.portugol.nucleo.execucao.Entrada;
 import br.univali.portugol.nucleo.execucao.ObservadorExecucao;
 import br.univali.portugol.nucleo.execucao.ResultadoExecucao;
-import br.univali.portugol.nucleo.execucao.Saida;
+import br.univali.portugol.nucleo.execucao.es.Armazenador;
+import br.univali.portugol.nucleo.execucao.es.Entrada;
+import br.univali.portugol.nucleo.execucao.es.Saida;
 import br.univali.portugol.nucleo.mensagens.AvisoAnalise;
 import br.univali.portugol.nucleo.mensagens.ErroAnalise;
 import java.io.BufferedReader;
@@ -48,18 +48,17 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
         try 
         {
             String algoritmo = lerArquivo(arquivo);
-            ResultadoAnalise resultadoAnalise = Portugol.analisar(algoritmo);
-            
-            if (resultadoAnalise.getNumeroAvisos() > 0)
-            {
-                exibirResultadoAnalise(resultadoAnalise);
-                System.out.println("\n\n");
-            }
             
             Programa programa = Portugol.compilar(algoritmo);
             programa.setEntrada(this);
             programa.setSaida(this);
             programa.adicionarObservadorExecucao(this);
+            
+            if (programa.getResultadoAnalise().contemAvisos())
+            {
+                exibirResultadoAnalise(programa.getResultadoAnalise());
+                System.out.println("\n\n");
+            }
             
             programa.executar(args);
         } 
@@ -267,15 +266,16 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             System.out.println("");
             System.out.println("Pressione ENTER para continuar");
             System.in.read();
+            System.exit(0);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             try
             {
                 Thread.sleep(3000);
                 System.exit(0);
             }
-            catch(Exception ex2)
+            catch(InterruptedException ex2)
             {
                 
             }
