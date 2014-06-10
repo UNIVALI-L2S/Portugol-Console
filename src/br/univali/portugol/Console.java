@@ -27,8 +27,7 @@ import java.util.Scanner;
 public final class Console implements Entrada, Saida, ObservadorExecucao
 {
     public static void main(String[] args)
-    {args = new String[] { "D:\\Usuarios\\Luiz Fernando\\Desktop\\a.por" };
-            
+    {            
         try
         {
             Console console = new Console();
