@@ -5,6 +5,7 @@ import br.univali.portugol.nucleo.Portugol;
 import br.univali.portugol.nucleo.Programa;
 import br.univali.portugol.nucleo.analise.ResultadoAnalise;
 import br.univali.portugol.nucleo.asa.TipoDado;
+import br.univali.portugol.nucleo.execucao.Depurador;
 import br.univali.portugol.nucleo.execucao.ObservadorExecucao;
 import br.univali.portugol.nucleo.execucao.ResultadoExecucao;
 import br.univali.portugol.nucleo.execucao.es.Armazenador;
@@ -12,12 +13,14 @@ import br.univali.portugol.nucleo.execucao.es.Entrada;
 import br.univali.portugol.nucleo.execucao.es.Saida;
 import br.univali.portugol.nucleo.mensagens.AvisoAnalise;
 import br.univali.portugol.nucleo.mensagens.ErroAnalise;
+import br.univali.portugol.nucleo.simbolos.Simbolo;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.InputMismatchException;
+import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -26,6 +29,8 @@ import java.util.Scanner;
  */
 public final class Console implements Entrada, Saida, ObservadorExecucao
 {
+    private static enum CodigoEncerramento { NORMAL, ERRO };
+            
     public static void main(String[] args)
     {            
         try
@@ -38,7 +43,7 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             System.err.println(excecao.getMessage());
             System.err.flush();
 
-            aguardar();
+            aguardar(CodigoEncerramento.ERRO);
         }
     }
 
@@ -64,11 +69,12 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             }
 
             programa.setDiretorioTrabalho(arquivo.getParentFile());
-            programa.executar(args);
+            programa.executar(args, Depurador.Estado.BREAK_POINT);
         }
         catch (ErroCompilacao erro)
         {
             exibirResultadoAnalise(erro.getResultadoAnalise());
+            aguardar(CodigoEncerramento.ERRO);
         }
     }
 
@@ -237,18 +243,19 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             case NORMAL:
                 System.out.println("\nPrograma finalizado");
                 System.out.flush();
+                aguardar(CodigoEncerramento.NORMAL);
                 break;
             case INTERRUPCAO:
                 System.out.println("\nO programa foi interrompido");
                 System.out.flush();
+                aguardar(CodigoEncerramento.NORMAL);
                 break;
             case ERRO:
-                System.out.println("\nErro de execução: " + resultadoExecucao.getErro().getMensagem() + "\nLinha: " + resultadoExecucao.getErro().getLinha() + ", Coluna: " + resultadoExecucao.getErro().getColuna());
-                System.out.flush();
+                System.err.println("\nErro de execução: " + resultadoExecucao.getErro().getMensagem() + "\nLinha: " + resultadoExecucao.getErro().getLinha() + ", Coluna: " + resultadoExecucao.getErro().getColuna());
+                System.err.flush();
+                aguardar(CodigoEncerramento.ERRO);
                 break;
         }
-
-        aguardar();
     }
 
     private String lerArquivo(File arquivo) throws Exception
@@ -297,12 +304,12 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
 
         for (ErroAnalise erro : resultadoAnalise.getErros())
         {
-            System.out.println("ERRO: " + erro.getMensagem() + ". Linha: " + erro.getLinha() + ", Coluna: " + erro.getColuna());
-            System.out.flush();
+            System.err.println("ERRO: " + erro.getMensagem() + ". Linha: " + erro.getLinha() + ", Coluna: " + erro.getColuna());
+            System.err.flush();
         }
     }
 
-    private static void aguardar()
+    private static void aguardar(CodigoEncerramento codigoEncerramento)
     {
         try
         {
@@ -310,19 +317,49 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             System.out.println("Pressione ENTER para continuar");
             System.out.flush();
             System.in.read();
-            System.exit(0);
+            System.exit(codigoEncerramento.ordinal());
         }
         catch (IOException ex)
         {
             try
             {
                 Thread.sleep(3000);
-                System.exit(0);
+                System.exit(codigoEncerramento.ordinal());
             }
             catch (InterruptedException ex2)
             {
-
+                System.exit(codigoEncerramento.ordinal());
             }
         }
+    }
+
+    @Override
+    public void highlightLinha(int linha) 
+    {
+        
+    }
+
+    @Override
+    public void highlightDetalhadoAtual(int linha, int coluna, int tamanho) 
+    {
+        
+    }
+
+    @Override
+    public void simbolosAlterados(List<Simbolo> simbolos) 
+    {
+        
+    }
+
+    @Override
+    public void simboloDeclarado(Simbolo simbolo) 
+    {
+        
+    }
+
+    @Override
+    public void simboloRemovido(Simbolo simbolo) 
+    {
+        
     }
 }
