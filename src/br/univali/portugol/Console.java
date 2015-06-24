@@ -17,9 +17,14 @@ import br.univali.portugol.nucleo.simbolos.Simbolo;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.InputMismatchException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -30,28 +35,41 @@ import java.util.Scanner;
 public final class Console implements Entrada, Saida, ObservadorExecucao
 {
     private static enum CodigoEncerramento { NORMAL, ERRO };
+    
+    private Scanner scannerEntrada = null;
+    private static boolean aguardarParaSair = true;
             
     public static void main(String[] args)
-    {            
+    {   
+        List<String> parametros = new ArrayList<>( Arrays.asList(args) );
+        
+        aguardarParaSair = extrairParametroAguardarParaSair(parametros);
+        
+        definirEntradaDadosPadrao(parametros);
+        definirSaidaDadosPadrao(parametros);
+        definirSaidaErrosPadrao(parametros);
+        
         try
         {
+            File arquivo = extrairArquivo(parametros);
+            
             Console console = new Console();
-            console.executar(args);
+            console.executar(arquivo, parametros.toArray(new String[parametros.size()]));
         }
         catch (Exception excecao)
         {
             System.err.println(excecao.getMessage());
             System.err.flush();
 
-            aguardar(CodigoEncerramento.ERRO);
+            if (aguardarParaSair)
+            {
+                aguardar(CodigoEncerramento.ERRO);
+            }
         }
     }
 
-    private void executar(String[] args) throws Exception
+    private void executar(File arquivo, String[] args) throws Exception
     {
-        File arquivo = extrairArquivo(args);
-        args = extrairParametros(args);
-
         try
         {
             String algoritmo = lerArquivo(arquivo);
@@ -64,25 +82,30 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             if (programa.getResultadoAnalise().contemAvisos())
             {
                 exibirResultadoAnalise(programa.getResultadoAnalise());
-                System.out.println("\n\n");
-                System.out.flush();
+                System.err.println("\n\n");
+                System.err.flush();
             }
 
-            programa.setDiretorioTrabalho(arquivo.getParentFile());
+            programa.setDiretorioTrabalho(arquivo.getAbsoluteFile().getParentFile());
             programa.executar(args, Depurador.Estado.BREAK_POINT);
         }
         catch (ErroCompilacao erro)
         {
             exibirResultadoAnalise(erro.getResultadoAnalise());
-            aguardar(CodigoEncerramento.ERRO);
+            
+            if (aguardarParaSair)
+            {
+                aguardar(CodigoEncerramento.ERRO);
+            }
         }
     }
 
-    private File extrairArquivo(String[] args) throws Exception
+    private static File extrairArquivo(List<String> args) throws Exception
     {
-        if (args.length > 0)
+        if (!args.isEmpty())
         {
-            File arquivo = new File(args[0]);
+            String parametro = args.remove(0);
+            File arquivo = new File(parametro);
             String caminho = obterCaminhoArquivo(arquivo);
 
             if (!arquivo.exists())
@@ -104,14 +127,168 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             {
                 throw new Exception(String.format("O arquivo '%s' não pode ser lido", caminho));
             }
-
+            
             return arquivo;
         }
 
         throw new Exception("O arquivo de programa não foi informado");
     }
+    
+    private static boolean extrairParametroAguardarParaSair(List<String> parametros) 
+    {
+        if (!parametros.isEmpty())
+        {
+            Iterator<String> iterador = parametros.iterator();
+            
+            while (iterador.hasNext())
+            {
+                String parametro = iterador.next();
 
-    private String obterCaminhoArquivo(File arquivo)
+                if (parametro.toLowerCase().equals("-no-wait"))
+                {
+                    iterador.remove();
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    private static void definirEntradaDadosPadrao(List<String> parametros)
+    {
+        if (!parametros.isEmpty())
+        {
+            Iterator<String> iterador = parametros.iterator();
+            
+            while (iterador.hasNext())
+            {
+                String parametro = iterador.next();
+
+                if (parametro.toLowerCase().startsWith("-in="))
+                {
+                    String[] partes = parametro.split("=");
+                    
+                    if (partes.length == 2)
+                    {
+                        String nomeArquivo = partes[1];
+                        
+                        if (nomeArquivo.length() > 0)
+                        {
+                            File arquivo = new File(nomeArquivo);
+                            
+                            if (arquivo.isFile() && arquivo.exists() && arquivo.canRead())
+                            {
+                                try
+                                {
+                                    System.setIn(new FileInputStream(arquivo));
+                                }
+                                catch (FileNotFoundException ex)
+                                {
+                                    
+                                }
+                            }
+                        }
+                    }
+                    
+                    iterador.remove();
+                    return;
+                }
+            }
+        }
+    }
+
+    public Scanner getScannerEntrada() 
+    {
+        if (scannerEntrada == null)
+        {
+            scannerEntrada = new Scanner(System.in);
+        }
+        
+        return scannerEntrada;
+    }
+    
+    private static void definirSaidaDadosPadrao(List<String> parametros)
+    {
+        if (!parametros.isEmpty())
+        {
+            Iterator<String> iterador = parametros.iterator();
+            
+            while (iterador.hasNext())
+            {
+                String parametro = iterador.next();
+
+                if (parametro.toLowerCase().startsWith("-out="))
+                {
+                    String[] partes = parametro.split("=");
+                    
+                    if (partes.length == 2)
+                    {
+                        String nomeArquivo = partes[1];
+                        
+                        if (nomeArquivo.length() > 0)
+                        {
+                            File arquivo = new File(nomeArquivo);
+                                                       
+                            try
+                            {
+                                System.setOut(new PrintStream(arquivo));
+                            }
+                            catch (FileNotFoundException ex)
+                            {
+
+                            }                           
+                        }
+                    }
+                    
+                    iterador.remove();
+                    return;
+                }
+            }
+        }
+    }
+    
+    private static void definirSaidaErrosPadrao(List<String> parametros)
+    {
+        if (!parametros.isEmpty())
+        {
+            Iterator<String> iterador = parametros.iterator();
+            
+            while (iterador.hasNext())
+            {
+                String parametro = iterador.next();
+
+                if (parametro.toLowerCase().startsWith("-err="))
+                {
+                    String[] partes = parametro.split("=");
+                    
+                    if (partes.length == 2)
+                    {
+                        String nomeArquivo = partes[1];
+                        
+                        if (nomeArquivo.length() > 0)
+                        {
+                            File arquivo = new File(nomeArquivo);
+                            
+                            try
+                            {
+                                System.setErr(new PrintStream(arquivo));
+                            }
+                            catch (FileNotFoundException ex)
+                            {
+
+                            }                            
+                        }
+                    }
+                    
+                    iterador.remove();
+                    return;
+                }
+            }
+        }
+    }    
+
+    private static String obterCaminhoArquivo(File arquivo)
     {
         try
         {
@@ -123,7 +300,7 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
         }
     }
 
-    private String[] extrairParametros(String[] args)
+    private static String[] extrairParametros(String[] args)
     {
         if (args.length > 1)
         {
@@ -143,29 +320,30 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     @Override
     public void solicitaEntrada(TipoDado tipoDado, Armazenador armazenador) throws Exception
     {
-        Scanner scanner = new Scanner(System.in);
+        Scanner scanner = getScannerEntrada();
 
         try
         {
+            String dado = scanner.next();
+            
             switch (tipoDado)
             {
 
                 case CADEIA:
-                    armazenador.setValor(scanner.next());
+                    armazenador.setValor(dado);
                     return;
                 case CARACTER:
-                    armazenador.setValor(scanner.next().charAt(0));
+                    armazenador.setValor(dado.charAt(0));
                     return;
                 case INTEIRO:
-                    armazenador.setValor(scanner.nextInt());
+                    armazenador.setValor(Integer.parseInt(dado));
                     return;
                 case REAL:
-                    armazenador.setValor(scanner.nextDouble());
+                    armazenador.setValor(Double.parseDouble(dado));
                     return;
                 case LOGICO:
                 {
-                    String log = scanner.next();
-                    Object valor = log.equals("verdadeiro") ? true : (log.equals("falso")) ? false : null;
+                    Object valor = dado.equals("verdadeiro") ? true : (dado.equals("falso")) ? false : null;
 
                     armazenador.setValor(valor);
                     return;
@@ -241,21 +419,33 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
         switch (resultadoExecucao.getModoEncerramento())
         {
             case NORMAL:
-                System.out.println("\nPrograma finalizado");
-                System.out.flush();
-                aguardar(CodigoEncerramento.NORMAL);
+                if (aguardarParaSair)
+                {
+                    System.out.println("\nPrograma finalizado");
+                    System.out.flush();
+                    aguardar(CodigoEncerramento.NORMAL);
+                }
                 break;
             case INTERRUPCAO:
-                System.out.println("\nO programa foi interrompido");
-                System.out.flush();
-                aguardar(CodigoEncerramento.NORMAL);
+                if (aguardarParaSair)
+                {
+                    System.out.println("\nO programa foi interrompido");
+                    System.out.flush();
+                    aguardar(CodigoEncerramento.NORMAL);
+                }                
                 break;
             case ERRO:
-                System.err.println("\nErro de execução: " + resultadoExecucao.getErro().getMensagem() + "\nLinha: " + resultadoExecucao.getErro().getLinha() + ", Coluna: " + resultadoExecucao.getErro().getColuna());
-                System.err.flush();
-                aguardar(CodigoEncerramento.ERRO);
+                if (aguardarParaSair)
+                {
+                    System.err.println("\nErro de execução: " + resultadoExecucao.getErro().getMensagem() + "\nLinha: " + resultadoExecucao.getErro().getLinha() + ", Coluna: " + resultadoExecucao.getErro().getColuna());
+                    System.err.flush();
+                    aguardar(CodigoEncerramento.ERRO);
+                }                
                 break;
         }
+        
+        scannerEntrada.close();
+        System.exit(CodigoEncerramento.NORMAL.ordinal());
     }
 
     private String lerArquivo(File arquivo) throws Exception
@@ -298,8 +488,8 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     {
         for (AvisoAnalise aviso : resultadoAnalise.getAvisos())
         {
-            System.out.println("AVISO: " + aviso.getMensagem() + ". Linha: " + aviso.getLinha() + ", Coluna: " + aviso.getColuna());
-            System.out.flush();
+            System.err.println("AVISO: " + aviso.getMensagem() + ". Linha: " + aviso.getLinha() + ", Coluna: " + aviso.getColuna());
+            System.err.flush();
         }
 
         for (ErroAnalise erro : resultadoAnalise.getErros())
