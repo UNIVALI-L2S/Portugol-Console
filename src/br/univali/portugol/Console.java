@@ -444,7 +444,6 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
                 break;
         }
         
-        scannerEntrada.close();
         System.exit(CodigoEncerramento.NORMAL.ordinal());
     }
 
