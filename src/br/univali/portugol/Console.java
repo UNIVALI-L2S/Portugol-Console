@@ -1,11 +1,11 @@
 package br.univali.portugol;
 
 import br.univali.portugol.nucleo.ErroCompilacao;
+import br.univali.portugol.nucleo.ListenerCompilacao;
 import br.univali.portugol.nucleo.Portugol;
 import br.univali.portugol.nucleo.Programa;
 import br.univali.portugol.nucleo.analise.ResultadoAnalise;
 import br.univali.portugol.nucleo.asa.TipoDado;
-import br.univali.portugol.nucleo.execucao.Depurador;
 import br.univali.portugol.nucleo.execucao.ObservadorExecucao;
 import br.univali.portugol.nucleo.execucao.ResultadoExecucao;
 import br.univali.portugol.nucleo.execucao.es.Armazenador;
@@ -13,7 +13,6 @@ import br.univali.portugol.nucleo.execucao.es.Entrada;
 import br.univali.portugol.nucleo.execucao.es.Saida;
 import br.univali.portugol.nucleo.mensagens.AvisoAnalise;
 import br.univali.portugol.nucleo.mensagens.ErroAnalise;
-import br.univali.portugol.nucleo.simbolos.Simbolo;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,16 +27,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
+
 /**
  *
  * @author Luiz Fernando Noschang
  */
-public final class Console implements Entrada, Saida, ObservadorExecucao
+public final class Console implements Entrada, Saida, ObservadorExecucao, ListenerCompilacao
 {
     private static enum CodigoEncerramento { NORMAL, ERRO };
     
     private Scanner scannerEntrada = null;
     private static boolean aguardarParaSair = true;
+    
+    private Programa programa = null;
+    private ErroCompilacao erroCompilacao = null;
             
     public static void main(String[] args)
     {   
@@ -57,7 +60,7 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             console.executar(arquivo, parametros.toArray(new String[parametros.size()]));
         }
         catch (Exception excecao)
-        {
+        {            
             System.err.println(excecao.getMessage());
             System.err.flush();
 
@@ -69,12 +72,32 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     }
 
     private void executar(File arquivo, String[] args) throws Exception
-    {
-        try
-        {
-            String algoritmo = lerArquivo(arquivo);
+    {     
+        String algoritmo = lerArquivo(arquivo);
+        Portugol.compilarParaExecucao(algoritmo, this, getClassPathParaCompilacao(), Caminhos.obterCaminhoExecutavelJavac());
 
-            Programa programa = Portugol.compilar(algoritmo);
+        synchronized (this)
+        {
+            System.out.println("Aguardando");
+            wait();
+            System.out.println("Acordando");
+        }
+        
+        if (erroCompilacao != null)
+        {
+            exibirResultadoAnalise(erroCompilacao.getResultadoAnalise());
+
+            if (aguardarParaSair)
+            {
+                aguardar(CodigoEncerramento.ERRO);
+            }
+        }
+        else
+        {
+            if (programa == null)
+                throw new RuntimeException("O programa não deveria ser nulo");
+
+
             programa.setEntrada(this);
             programa.setSaida(this);
             programa.adicionarObservadorExecucao(this);
@@ -87,19 +110,20 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
             }
 
             programa.setDiretorioTrabalho(arquivo.getAbsoluteFile().getParentFile());
-            programa.executar(args, Depurador.Estado.BREAK_POINT);
-        }
-        catch (ErroCompilacao erro)
-        {
-            exibirResultadoAnalise(erro.getResultadoAnalise());
-            
-            if (aguardarParaSair)
-            {
-                aguardar(CodigoEncerramento.ERRO);
-            }
+            programa.executar(args, Programa.Estado.BREAK_POINT);
         }
     }
 
+    private File getClassPathParaCompilacao()
+    {
+        if (Caminhos.rodandoNoNetbeans())
+        {
+            return new File(System.getProperty("java.class.path"));
+        }
+        
+        return new File(Caminhos.getDiretorioAplicacao(), "libs");
+    }
+    
     private static File extrairArquivo(List<String> args) throws Exception
     {
         if (!args.isEmpty())
@@ -318,7 +342,49 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     }
 
     @Override
-    public void solicitaEntrada(TipoDado tipoDado, Armazenador armazenador) throws Exception
+    public void execucaoPausada() 
+    {
+
+    }
+
+    @Override
+    public void execucaoResumida() 
+    {
+        
+    }
+    
+    @Override
+    public void compilacaoParaExecucaoIniciada() 
+    {
+        System.out.println("Compilação iniciada");
+    }
+
+    @Override
+    public void compilacaoParaExecucaoFinalizada(Programa programa) 
+    {   
+        System.out.println("Compilação finalizada");
+        this.programa = programa;
+        
+        synchronized (this)
+        {
+            notify();
+        }
+    }
+
+    @Override
+    public void errosDeCompilacaoDetectados(ErroCompilacao erro) 
+    {
+        System.out.println("Deu merda");
+        this.erroCompilacao = erro;
+        
+        synchronized (this)
+        {
+            notify();
+        }
+    }
+    
+    @Override
+    public void solicitaEntrada(TipoDado tipoDado, Armazenador armazenador)
     {
         Scanner scanner = getScannerEntrada();
 
@@ -359,20 +425,20 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     }
 
     @Override
-    public void limpar() throws Exception
+    public void limpar()
     {
 
     }
 
     @Override
-    public void escrever(String valor) throws Exception
+    public void escrever(String valor)
     {
         System.out.print(valor);
         System.out.flush();
     }
 
     @Override
-    public void escrever(boolean valor) throws Exception
+    public void escrever(boolean valor)
     {
         if (valor == true)
         {
@@ -387,21 +453,21 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     }
 
     @Override
-    public void escrever(int valor) throws Exception
+    public void escrever(int valor)
     {
         System.out.print(Integer.toString(valor));
         System.out.flush();
     }
 
     @Override
-    public void escrever(double valor) throws Exception
+    public void escrever(double valor)
     {
         System.out.print(Double.toString(valor));
         System.out.flush();
     }
 
     @Override
-    public void escrever(char valor) throws Exception
+    public void escrever(char valor)
     {
         System.out.print(Character.toString(valor));
         System.out.flush();
@@ -530,24 +596,6 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
 
     @Override
     public void highlightDetalhadoAtual(int linha, int coluna, int tamanho) 
-    {
-        
-    }
-
-    @Override
-    public void simbolosAlterados(List<Simbolo> simbolos) 
-    {
-        
-    }
-
-    @Override
-    public void simboloDeclarado(Simbolo simbolo) 
-    {
-        
-    }
-
-    @Override
-    public void simboloRemovido(Simbolo simbolo) 
     {
         
     }
