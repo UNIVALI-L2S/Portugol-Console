@@ -1,7 +1,6 @@
 package br.univali.portugol;
 
 import br.univali.portugol.nucleo.ErroCompilacao;
-import br.univali.portugol.nucleo.ListenerCompilacao;
 import br.univali.portugol.nucleo.Portugol;
 import br.univali.portugol.nucleo.Programa;
 import br.univali.portugol.nucleo.analise.ResultadoAnalise;
@@ -32,7 +31,7 @@ import java.util.Scanner;
  *
  * @author Luiz Fernando Noschang
  */
-public final class Console implements Entrada, Saida, ObservadorExecucao, ListenerCompilacao
+public final class Console implements Entrada, Saida, ObservadorExecucao
 {
     private static enum CodigoEncerramento { NORMAL, ERRO };
     
@@ -40,8 +39,7 @@ public final class Console implements Entrada, Saida, ObservadorExecucao, Listen
     private static boolean aguardarParaSair = true;
     
     private Programa programa = null;
-    private ErroCompilacao erroCompilacao = null;
-            
+
     public static void main(String[] args)
     {   
         List<String> parametros = new ArrayList<>( Arrays.asList(args) );
@@ -74,29 +72,11 @@ public final class Console implements Entrada, Saida, ObservadorExecucao, Listen
     private void executar(File arquivo, String[] args) throws Exception
     {     
         String algoritmo = lerArquivo(arquivo);
-        Portugol.compilarParaExecucao(algoritmo, this, getClassPathParaCompilacao(), Caminhos.obterCaminhoExecutavelJavac());
-
-        synchronized (this)
+        try
         {
-            System.out.println("Aguardando");
-            wait();
-            System.out.println("Acordando");
-        }
-        
-        if (erroCompilacao != null)
-        {
-            exibirResultadoAnalise(erroCompilacao.getResultadoAnalise());
-
-            if (aguardarParaSair)
-            {
-                aguardar(CodigoEncerramento.ERRO);
-            }
-        }
-        else
-        {
+            programa = Portugol.compilarParaExecucao(algoritmo, getClassPathParaCompilacao(), Caminhos.obterCaminhoExecutavelJavac());
             if (programa == null)
                 throw new RuntimeException("O programa não deveria ser nulo");
-
 
             programa.setEntrada(this);
             programa.setSaida(this);
@@ -110,7 +90,16 @@ public final class Console implements Entrada, Saida, ObservadorExecucao, Listen
             }
 
             programa.setDiretorioTrabalho(arquivo.getAbsoluteFile().getParentFile());
-            programa.executar(args, Programa.Estado.BREAK_POINT);
+            programa.executar(args, Programa.Estado.BREAK_POINT);            
+        }
+        catch(ErroCompilacao erroCompilacao) 
+        {
+            exibirResultadoAnalise(erroCompilacao.getResultadoAnalise());
+
+            if (aguardarParaSair)
+            {
+                aguardar(CodigoEncerramento.ERRO);
+            }
         }
     }
 
@@ -351,36 +340,6 @@ public final class Console implements Entrada, Saida, ObservadorExecucao, Listen
     public void execucaoResumida() 
     {
         
-    }
-    
-    @Override
-    public void compilacaoParaExecucaoIniciada() 
-    {
-        System.out.println("Compilação iniciada");
-    }
-
-    @Override
-    public void compilacaoParaExecucaoFinalizada(Programa programa) 
-    {   
-        System.out.println("Compilação finalizada");
-        this.programa = programa;
-        
-        synchronized (this)
-        {
-            notify();
-        }
-    }
-
-    @Override
-    public void errosDeCompilacaoDetectados(ErroCompilacao erro) 
-    {
-        System.out.println("Deu merda");
-        this.erroCompilacao = erro;
-        
-        synchronized (this)
-        {
-            notify();
-        }
     }
     
     @Override
