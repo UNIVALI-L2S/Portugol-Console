@@ -2,6 +2,12 @@ package br.univali.portugol;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.security.CodeSource;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -14,35 +20,35 @@ public final class Caminhos
     private static final File diretorioCompilacao = new File(diretorioTemporario, "compilacao");
     private static final File diretorioAplicacao = new File(diretorioInstalacao, "aplicacao");
 
-//    private static File resolverDiretorioInstalacao()
-//    {
-//        if (!rodandoNoNetbeans())
-//        {
-//            CodeSource localCodigo = Caminhos.class.getProtectionDomain().getCodeSource();
-//            URL local = localCodigo.getLocation();
-//
-//            return new File(URI.create(local.toExternalForm())).getParentFile();
-//        }
-//        else
-//        {
-//            File diretorio = new File("../Portugol-Instalador/arquivos/compartilhados");
-//
-//            return diretorio;
-//        }
-//    }
-
     private static File resolverDiretorioInstalacao()
     {
-        if (rodandoNoNetbeans())
+        if (!rodandoNoNetbeans())
         {
-            File diretorio = new File("./teste");
-            diretorio.mkdirs();
+            CodeSource localCodigo = Caminhos.class.getProtectionDomain().getCodeSource();
+            URL local = localCodigo.getLocation();
+
+            return new File(URI.create(local.toExternalForm())).getParentFile().getParentFile();
+        }
+        else
+        {
+            File diretorio = new File("../Portugol-Instalador/arquivos/compartilhados");
 
             return diretorio;
         }
-
-        return new File(extrairCaminho(new File(".")));
     }
+
+//    private static File resolverDiretorioInstalacao()
+//    {
+//        if (rodandoNoNetbeans())
+//        {
+//            File diretorio = new File("./teste");
+//            diretorio.mkdirs();
+//
+//            return diretorio;
+//        }
+//
+//        return new File(extrairCaminho(new File(".")));
+//    }
 
     public static File getDiretorioAplicacao() 
     {
@@ -64,6 +70,11 @@ public final class Caminhos
         return diretorioTemporario;
     }
     
+    private static String getCaminhoDoJAR() throws URISyntaxException
+    {
+        return Caminhos.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+    }
+    
     public static String obterCaminhoExecutavelJavac()
     {
         if (Caminhos.rodandoNoNetbeans())
@@ -83,7 +94,16 @@ public final class Caminhos
 
             if (rodandoNoWindows())
             {
-                executavel = new File(new File(new File(new File(diretorioInstalacao, "java"), "java-windows"), "bin"), "javac.exe");
+                try {
+                    
+                    String caminhoDoJAR = getCaminhoDoJAR();
+                    
+                    executavel = new File(new File(new File(new File(new File(caminhoDoJAR).getParentFile().getParentFile(), "java"), "java-windows"), "bin"), "javac.exe");
+                } catch (URISyntaxException ex) {
+                    Logger.getLogger(Caminhos.class.getName()).log(Level.SEVERE, null, ex);
+                    executavel = new File(new File(new File(new File(diretorioInstalacao, "java"), "java-windows"), "bin"), "javac.exe");
+                }
+                
             }
             else if (rodandoNoLinux())
             {

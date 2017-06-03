@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -25,6 +26,9 @@ import java.util.InputMismatchException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 
 /**
@@ -40,8 +44,25 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
     
     private Programa programa = null;
 
+    private static void inicializarMecanismoLog()
+    {
+        final InputStream inputStream = Console.class.getResourceAsStream("/logging.properties");
+
+        try
+        {
+            LogManager.getLogManager().readConfiguration(inputStream);
+        }
+        catch (final IOException excecao)
+        {
+            Logger.getAnonymousLogger().severe("Não foi possível localizar o arquivo de configuração de log 'logging.properties'");
+            Logger.getAnonymousLogger().log(Level.SEVERE, excecao.getMessage(), excecao);
+        }
+    }
+    
     public static void main(String[] args)
     {   
+        inicializarMecanismoLog();
+        
         List<String> parametros = new ArrayList<>( Arrays.asList(args) );
         
         aguardarParaSair = extrairParametroAguardarParaSair(parametros);
@@ -103,14 +124,39 @@ public final class Console implements Entrada, Saida, ObservadorExecucao
         }
     }
 
-    private File getClassPathParaCompilacao()
+    private static boolean rodandoEmmWindows()
     {
-        if (Caminhos.rodandoNoNetbeans())
-        {
-            return new File(System.getProperty("java.class.path"));
+        String so = System.getProperty("os.name");
+
+        return (so != null && so.toLowerCase().contains("win"));
+    }
+    
+    private static boolean rodandoNoNetbeans()
+    {
+        return System.getProperty("netbeans") != null;
+    }
+    
+    private String getClassPathParaCompilacao() throws IOException
+    {
+        String classPathSeparator = !rodandoEmmWindows() ? ":" : ";"; 
+        
+        if (rodandoNoNetbeans()) {
+
+            return System.getProperty("java.class.path") + classPathSeparator;
         }
         
-        return new File(Caminhos.getDiretorioAplicacao(), "libs");
+        File classpathDir = new File(Caminhos.getDiretorioAplicacao(), "lib");
+     
+        String expandedClassPath = "";
+        if (classpathDir.isDirectory()) {
+            File jars[] = classpathDir.listFiles();
+            
+            for (File jar : jars) {
+                expandedClassPath += jar.getCanonicalPath() + classPathSeparator;
+            }
+        }
+       
+        return expandedClassPath;
     }
     
     private static File extrairArquivo(List<String> args) throws Exception
